@@ -73,7 +73,7 @@ th.holidayDayOfWeek {
 }
 
 #issuetable > tbody > tr:hover {
-  background-color: #222526 !important;
+  background-color: #f0f0f0 !important;
 }
 
 .overlay,
