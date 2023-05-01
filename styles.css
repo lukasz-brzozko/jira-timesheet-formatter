@@ -72,6 +72,10 @@ th.holidayDayOfWeek {
   background-color: #f0f0f0;
 }
 
+#issuetable > tbody > tr:hover {
+  background-color: #222526 !important;
+}
+
 .overlay,
 .estimatePopup {
   display: none;
