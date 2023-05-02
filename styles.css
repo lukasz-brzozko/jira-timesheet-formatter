@@ -21,6 +21,10 @@
   margin-left: auto;
 }
 
+#issuetable {
+  font-family: Arial, sans-serif;
+}
+
 #issuetable thead tr th {
   white-space: normal;
   padding: 3px 5px;
