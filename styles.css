@@ -292,8 +292,6 @@ body .report-thumbnail-timespent:before {
     no-repeat center center !important;
 }
 
-// HERE
-
 @font-face {
   font-family: "FontAwesome";
   src: url("/s/a3v501/940003/1dlckms/4.5.1/_/download/resources/jira-timesheet-plugin:timesheet-slider-resources/fonts/fontawesome-webfont.eot?v=4.0.3");
@@ -753,6 +751,11 @@ div.calendar {
   pointer-events: all;
 }
 
+.btn,
+.toast {
+  z-index: 100;
+}
+
 .toast {
   position: fixed;
   bottom: 0;
@@ -778,7 +781,6 @@ div.calendar {
   padding: 6px 16px;
   opacity: 0;
   pointer-events: none;
-  z-index: 100;
 }
 
 .toast-icon-container {
