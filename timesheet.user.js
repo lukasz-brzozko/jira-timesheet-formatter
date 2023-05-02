@@ -24,6 +24,12 @@
   const IDS = {
     dashboardContent: "dashboard-content",
     layout: "my-layout",
+    formatterBtn: "formatter-btn",
+    myGadget: "my-gadget",
+  };
+
+  const STATE = {
+    loading: "loading",
   };
 
   const baseURL =
@@ -31,6 +37,8 @@
   const now = new Date();
 
   let controller;
+  let formatterBtnEl;
+  let layoutEl;
 
   const linkStyles = async () => {
     const myCss = GM_getResourceText("styles");
@@ -38,6 +46,11 @@
     styleTag.textContent = myCss;
 
     document.body.prepend(styleTag);
+  };
+
+  const toggleLoading = (force = undefined) => {
+    formatterBtnEl?.classList.toggle(STATE.loading, force);
+    layoutEl?.classList.toggle(STATE.loading, force);
   };
 
   const formatValue = ({ cell, cellContent }) => {
@@ -73,21 +86,41 @@
     });
   };
 
-  const renderLayout = ({ layoutEl, html }) => {
-    layoutEl.innerHTML = `
-  <div class="layout layout-a">
-    <div class="my-gadget gadget color1" style="position:relative">
-      ${html}
-    </div>
-  </div>
-  `;
-
+  const calculateCellValues = ({ layoutEl }) => {
     const cells = layoutEl.querySelectorAll(SELECTORS.cellWithValue);
     const rowFooterCells = layoutEl.querySelectorAll(SELECTORS.footerCell);
     const summaryCells = layoutEl.querySelectorAll(SELECTORS.summaryCells);
 
     handleMainCells(cells);
     handleBoldCells([...rowFooterCells, ...summaryCells]);
+    toggleLoading(false);
+  };
+
+  const renderLayout = ({ layoutEl, html }) => {
+    const myGadgetEl = layoutEl.querySelector(`#${IDS.myGadget}`);
+
+    myGadgetEl.innerHTML = html;
+
+    calculateCellValues({ layoutEl });
+  };
+
+  const renderInitialLayout = ({ layoutEl, html }) => {
+    layoutEl.innerHTML = `
+<div class="layout layout-a" >
+  <div class="my-gadget gadget color1" id="${IDS.myGadget}" style="position:relative">
+    ${html}
+  </div>
+</div>
+<div aria-hidden="true" class="backdrop">
+  <span class="backdrop-container" role="progressbar" style="width: 40px; height: 40px;">
+    <svg class="backdrop-svg" viewBox="22 22 44 44">
+      <circle class="backdrop-circle" cx="44" cy="44" r="20.2" fill="none" stroke-width="3.6"></circle>
+    </svg>
+  </span>
+</div>
+`;
+
+    calculateCellValues({ layoutEl });
   };
 
   const fetchData = async () => {
@@ -102,26 +135,37 @@
   };
 
   const renderContent = async () => {
-    const { html } = await fetchData();
-
+    layoutEl = document.getElementById(IDS.layout);
     const dashboardContentEl = document.getElementById(IDS.dashboardContent);
-    let layoutEl = document.getElementById(IDS.layout);
+
+    toggleLoading(true);
+
+    const { html } = await fetchData();
 
     if (layoutEl !== null) return renderLayout({ layoutEl, html });
 
     layoutEl = document.createElement("div");
     layoutEl.id = IDS.layout;
-    renderLayout({ layoutEl, html });
+    renderInitialLayout({ layoutEl, html });
 
     dashboardContentEl.appendChild(layoutEl);
   };
 
   const generateBtn = () => {
     const formatterBtn = document.createElement("button");
-    formatterBtn.textContent = "Formatuj czas";
-    formatterBtn.style =
-      "position:fixed;bottom:0;left:0;width:188px;height:100px;cursor:pointer;font-size:26px;";
+    formatterBtn.id = IDS.formatterBtn;
+    formatterBtn.className = "btn";
+    formatterBtn.innerHTML = `
+      <span class="btn-text">Formatuj czas</span>
+      <div class="spinner">
+        <div class="lds-ripple">
+          <div></div>
+          <div></div>
+        </div>
+      </div>`;
     document.body.appendChild(formatterBtn);
+
+    formatterBtnEl = document.getElementById(IDS.formatterBtn);
 
     formatterBtn.addEventListener("click", renderContent);
   };
