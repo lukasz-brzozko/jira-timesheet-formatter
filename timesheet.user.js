@@ -6,7 +6,9 @@
 // @author       You
 // @match        https://jira.nd0.pl/secure/Dashboard.jspa
 // @resource styles    https://raw.githubusercontent.com/lukasz-brzozko/jira-timesheet-formatter/main/styles.css
-// @icon         https://www.google.com/s2/favicons?sz=64&domain=nd0.pl
+// @icon         https://jira.nd0.pl/s/a3v501/940003/1dlckms/_/images/fav-jsw.png
+// @updateURL    https://raw.githubusercontent.com/lukasz-brzozko/jira-timesheet-formatter/main/timesheet.meta.js
+// @downloadURL  https://raw.githubusercontent.com/lukasz-brzozko/jira-timesheet-formatter/main/timesheet.user.js
 // @grant        GM_getResourceText
 // ==/UserScript==
 
