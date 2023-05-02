@@ -1,9 +1,9 @@
 // ==UserScript==
 // @name         Jira Time Sheet Formatter
-// @namespace    http://tampermonkey.net/
+// @namespace    https://github.com/lukasz-brzozko/jira-timesheet-formatter
 // @version      0.1
-// @description  try to take over the world!
-// @author       You
+// @description  Format time into hours and minutes
+// @author       Łukasz Brzózko
 // @match        https://jira.nd0.pl/secure/Dashboard.jspa
 // @resource styles    https://raw.githubusercontent.com/lukasz-brzozko/jira-timesheet-formatter/main/styles.css
 // @icon         https://jira.nd0.pl/s/a3v501/940003/1dlckms/_/images/fav-jsw.png
@@ -14,6 +14,8 @@
 
 (function () {
   "use strict";
+
+  const WEEK_OFFSET = 0;
 
   const SELECTORS = {
     cellWithValue: "td.nav.border.workedDay",
@@ -26,19 +28,21 @@
     layout: "my-layout",
     formatterBtn: "formatter-btn",
     myGadget: "my-gadget",
+    toast: "toast",
   };
 
   const STATE = {
     loading: "loading",
+    visible: "visible",
   };
 
-  const baseURL =
-    "https://jira.nd0.pl/rest/timesheet-gadget/1.0/timesheet.json?isGadget=true&baseUrl=https%3A%2F%2Fjira.nd0.pl&gadgetTitle=&startDate=&targetUser=&targetGroup=&collapseFieldGroups=false&excludeTargetGroup=&numOfWeeks=1&reportingDay=&projectOrFilter=&projectid=&filterid=&projectRoleId=&commentfirstword=&weekends=true&showDetails=true&sumSubTasks=false&showEmptyRows=false&groupByField=&moreFields=&offset=-1&page=1&monthView=false&sum=&sortBy=&sortDir=ASC&_=";
+  const baseURL = `https://jira.nd0.pl/rest/timesheet-gadget/1.0/timesheet.json?isGadget=true&baseUrl=https%3A%2F%2Fjira.nd0.pl&gadgetTitle=&startDate=&targetUser=&targetGroup=&collapseFieldGroups=false&excludeTargetGroup=&numOfWeeks=1&reportingDay=&projectOrFilter=&projectid=&filterid=&projectRoleId=&commentfirstword=&weekends=true&showDetails=true&sumSubTasks=false&showEmptyRows=false&groupByField=&moreFields=&offset=${WEEK_OFFSET}&page=1&monthView=false&sum=&sortBy=&sortDir=ASC&_=`;
   const now = new Date();
 
   let controller;
   let formatterBtnEl;
   let layoutEl;
+  let toastEl;
 
   const linkStyles = async () => {
     const myCss = GM_getResourceText("styles");
@@ -106,18 +110,19 @@
 
   const renderInitialLayout = ({ layoutEl, html }) => {
     layoutEl.innerHTML = `
-<div class="layout layout-a" >
-  <div class="my-gadget gadget color1" id="${IDS.myGadget}" style="position:relative">
-    ${html}
-  </div>
-</div>
-<div aria-hidden="true" class="backdrop">
-  <span class="backdrop-container" role="progressbar" style="width: 40px; height: 40px;">
-    <svg class="backdrop-svg" viewBox="22 22 44 44">
-      <circle class="backdrop-circle" cx="44" cy="44" r="20.2" fill="none" stroke-width="3.6"></circle>
-    </svg>
-  </span>
-</div>
+    <div class="layout layout-a">
+      <div class="my-gadget gadget color1" id="${IDS.myGadget}" style="position:relative">
+        ${html}
+      </div>
+    </div>
+
+    <div aria-hidden="true" class="backdrop">
+      <span class="backdrop-container" role="progressbar" style="width: 40px; height: 40px;">
+        <svg class="backdrop-svg" viewBox="22 22 44 44">
+          <circle class="backdrop-circle" cx="44" cy="44" r="20.2" fill="none" stroke-width="3.6"></circle>
+        </svg>
+      </span>
+    </div>
 `;
 
     calculateCellValues({ layoutEl });
@@ -128,10 +133,28 @@
     controller = new AbortController();
     const { signal } = controller;
 
-    const response = await fetch(`${baseURL}${now.getTime()}`, { signal });
-    const { html } = await response.json();
+    let html;
+    let error;
 
-    return { html };
+    try {
+      const response = await fetch(`${baseURL}${now.getTime()}`, { signal });
+      const { html: htmlData } = await response.json();
+
+      html = htmlData;
+    } catch (err) {
+      error = err;
+    }
+
+    return { html, error };
+  };
+
+  const handleError = (error) => {
+    toggleLoading(false);
+    void toastEl.offsetWidth; // Force reflow
+    toastEl.classList.add(STATE.visible);
+
+    console.clear();
+    console.error(error);
   };
 
   const renderContent = async () => {
@@ -139,40 +162,63 @@
     const dashboardContentEl = document.getElementById(IDS.dashboardContent);
 
     toggleLoading(true);
+    toastEl.classList.remove(STATE.visible);
 
-    const { html } = await fetchData();
+    const { html, error } = await fetchData();
 
+    if (error) return handleError(error);
     if (layoutEl !== null) return renderLayout({ layoutEl, html });
 
     layoutEl = document.createElement("div");
     layoutEl.id = IDS.layout;
+
     renderInitialLayout({ layoutEl, html });
 
     dashboardContentEl.appendChild(layoutEl);
   };
 
-  const generateBtn = () => {
+  const generateUiElements = () => {
     const formatterBtn = document.createElement("button");
+    const toastWrapper = document.createElement("div");
+
     formatterBtn.id = IDS.formatterBtn;
     formatterBtn.className = "btn";
     formatterBtn.innerHTML = `
-      <span class="btn-text">Formatuj czas</span>
-      <div class="spinner">
-        <div class="lds-ripple">
-          <div></div>
-          <div></div>
-        </div>
-      </div>`;
+    <span class="btn-text">Formatuj czas</span>
+    <div class="spinner">
+      <div class="lds-ripple">
+        <div></div>
+        <div></div>
+      </div>
+    </div>`;
+
+    toastWrapper.innerHTML = `
+    <div id="toast" class="toast error" role="alert">
+      <div class="toast-icon-container">
+        <svg
+          class="toast-icon toast-icon--error"
+          focusable="false"
+          aria-hidden="true"
+          viewBox="0 0 24 24"
+        >
+          <path d="M11 15h2v2h-2zm0-8h2v6h-2zm.99-5C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zM12 20c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8z"></path>
+        </svg>
+      </div>
+      <div class="toast-message">Wystąpił błąd. Spróbuj ponownie później.</div>
+    </div>`;
+
     document.body.appendChild(formatterBtn);
+    document.body.appendChild(toastWrapper);
 
     formatterBtnEl = document.getElementById(IDS.formatterBtn);
+    toastEl = document.getElementById(IDS.toast);
 
     formatterBtn.addEventListener("click", renderContent);
   };
 
   const init = () => {
     linkStyles();
-    generateBtn();
+    generateUiElements();
   };
 
   init();

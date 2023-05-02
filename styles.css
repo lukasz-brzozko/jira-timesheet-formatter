@@ -753,6 +753,108 @@ div.calendar {
   pointer-events: all;
 }
 
+.toast {
+  position: fixed;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 100%;
+  max-width: 700px;
+  color: rgba(0, 0, 0, 0.87);
+  -webkit-transition: box-shadow 300ms cubic-bezier(0.4, 0, 0.2, 1) 0ms;
+  transition: box-shadow 300ms cubic-bezier(0.4, 0, 0.2, 1) 0ms,
+    opacity 200ms cubic-bezier(0.4, 0, 0.2, 1) 0ms;
+  border-radius: 4px;
+  box-shadow: none;
+  font-family: "Roboto", "Helvetica", "Arial", sans-serif;
+  font-weight: 400;
+  font-size: 0.875rem;
+  line-height: 1.43;
+  letter-spacing: 0.01071em;
+  display: -webkit-box;
+  display: -webkit-flex;
+  display: -ms-flexbox;
+  display: flex;
+  padding: 6px 16px;
+  opacity: 0;
+  pointer-events: none;
+  z-index: 100;
+}
+
+.toast-icon-container {
+  margin-right: 12px;
+  padding: 7px 0;
+  display: -webkit-box;
+  display: -webkit-flex;
+  display: -ms-flexbox;
+  display: flex;
+  align-items: center;
+  font-size: 22px;
+  opacity: 0.9;
+}
+
+.toast-icon {
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+  width: 1em;
+  height: 1em;
+  display: none;
+  fill: currentColor;
+  -webkit-flex-shrink: 0;
+  -ms-flex-negative: 0;
+  flex-shrink: 0;
+  -webkit-transition: fill 200ms cubic-bezier(0.4, 0, 0.2, 1) 0ms;
+  transition: fill 200ms cubic-bezier(0.4, 0, 0.2, 1) 0ms;
+  font-size: inherit;
+}
+
+.toast-message {
+  padding: 8px 0;
+  min-width: 0;
+  overflow: auto;
+}
+
+.toast.visible {
+  animation: show-toast 200ms cubic-bezier(0.4, 0, 0.2, 1) 0ms forwards,
+    show-toast 200ms cubic-bezier(0.4, 0, 0.2, 1) 7s reverse forwards;
+  pointer-events: all;
+}
+
+.toast.error {
+  background-color: rgb(253, 237, 237);
+  color: #d32f2f;
+}
+
+.toast.success .toast-icon--success,
+.toast.warning .toast-icon--warning,
+.toast.error .toast-icon--error {
+  display: inline-block;
+}
+
+.toast.warning {
+  background-color: rgb(255, 244, 229);
+  color: rgb(102, 60, 0);
+}
+
+.toast.success {
+  background-color: rgb(237, 247, 237);
+  color: rgb(30, 70, 32);
+}
+
+@keyframes show-toast {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, 100%);
+  }
+
+  100% {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+}
+
 @keyframes rotate {
   0% {
     transform: rotate(0deg);
