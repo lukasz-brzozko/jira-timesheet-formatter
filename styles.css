@@ -17,8 +17,8 @@
 }
 
 .my-gadget {
-  width: calc(95% + 40px);
-  margin-left: auto;
+  width: 98%;
+  margin: 0 0 -1.5em 2%;
 }
 
 #issuetable {

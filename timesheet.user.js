@@ -24,7 +24,7 @@
     footerCell: ".rowFooter .workedDay > b",
     summaryCells: "tbody > tr > td:last-child > b",
     tableBody: "#issuetable > tbody",
-    boldCells: "td > b",
+    boldCell: "td > b",
   };
 
   const IDS = {
@@ -114,10 +114,12 @@
   };
 
   const generateRemainingTimeRow = (row) => {
+    if (row === null) return null;
+
     const remainingTimeRow = row.cloneNode(true);
     remainingTimeRow.classList.add("remaining-time");
 
-    const boldCells = remainingTimeRow.querySelectorAll(SELECTORS.boldCells);
+    const boldCells = remainingTimeRow.querySelectorAll(SELECTORS.boldCell);
 
     boldCells[boldCells.length - 1].textContent = "";
     remainingTimeRow.firstElementChild.textContent = "Remaining time:";
@@ -132,7 +134,9 @@
     const rowFooter = tableBody.querySelector(SELECTORS.rowFooter);
 
     const remainingTimeRow = generateRemainingTimeRow(rowFooter);
-    tableBody.appendChild(remainingTimeRow);
+    if (remainingTimeRow !== null) {
+      tableBody.appendChild(remainingTimeRow);
+    }
 
     const cells = tableBody.querySelectorAll(SELECTORS.cellWithValue);
     const rowFooterCells = tableBody.querySelectorAll(SELECTORS.footerCell);
