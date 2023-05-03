@@ -16,11 +16,15 @@
   "use strict";
 
   const WEEK_OFFSET = 0;
+  const WORK_DAY_SHIFT_HOURS = 7.5;
 
   const SELECTORS = {
     cellWithValue: "td.nav.border.workedDay",
+    rowFooter: ".rowFooter",
     footerCell: ".rowFooter .workedDay > b",
     summaryCells: "tbody > tr > td:last-child > b",
+    tableBody: "#issuetable > tbody",
+    boldCells: "td > b",
   };
 
   const IDS = {
@@ -34,6 +38,8 @@
   const STATE = {
     loading: "loading",
     visible: "visible",
+    complete: "complete",
+    notComplete: "not-complete",
   };
 
   const baseURL = `https://jira.nd0.pl/rest/timesheet-gadget/1.0/timesheet.json?isGadget=true&baseUrl=https%3A%2F%2Fjira.nd0.pl&gadgetTitle=&startDate=&targetUser=&targetGroup=&collapseFieldGroups=false&excludeTargetGroup=&numOfWeeks=1&reportingDay=&projectOrFilter=&projectid=&filterid=&projectRoleId=&commentfirstword=&weekends=true&showDetails=true&sumSubTasks=false&showEmptyRows=false&groupByField=&moreFields=&offset=${WEEK_OFFSET}&page=1&monthView=false&sum=&sortBy=&sortDir=ASC&_=`;
@@ -57,6 +63,9 @@
     layoutEl?.classList.toggle(STATE.loading, force);
   };
 
+  const padNumber = (number, length = 1) =>
+    number.toString().padStart(length, "0");
+
   const formatValue = ({ cell, cellContent }) => {
     const cellNumber = cellContent.slice(0, -1);
     const separatorIndex = cellNumber.indexOf(".");
@@ -66,9 +75,10 @@
     const fraction =
       separatorIndex !== -1 ? `0.${cellNumber.slice(separatorIndex + 1)}` : 0;
     const minutes = Math.round(parseFloat(fraction) * 60);
-    const padMinutes = minutes.toString().padStart(2, "0");
+    const padHours = padNumber(hours, 1);
+    const padMinutes = padNumber(minutes, 2);
 
-    cell.textContent = `${hours}h ${padMinutes}m`;
+    cell.textContent = `${padHours}h ${padMinutes}m`;
   };
 
   const handleMainCells = (cellsArr) => {
@@ -90,10 +100,43 @@
     });
   };
 
+  const calculateRemainingTime = (cell) => {
+    const cellContent = cell.textContent.trim();
+    if (!cellContent) return;
+
+    const cellValue = parseFloat(cellContent);
+    const remainingTime = WORK_DAY_SHIFT_HOURS - cellValue;
+
+    cell.textContent = `${remainingTime}h`;
+    const cellParent = cell.parentElement.classList.add(
+      remainingTime > 0 ? STATE.notComplete : STATE.complete
+    );
+  };
+
+  const generateRemainingTimeRow = (row) => {
+    const remainingTimeRow = row.cloneNode(true);
+    remainingTimeRow.classList.add("remaining-time");
+
+    const boldCells = remainingTimeRow.querySelectorAll(SELECTORS.boldCells);
+
+    boldCells[boldCells.length - 1].textContent = "";
+    remainingTimeRow.firstElementChild.textContent = "Remaining time:";
+
+    boldCells.forEach(calculateRemainingTime);
+
+    return remainingTimeRow;
+  };
+
   const calculateCellValues = ({ layoutEl }) => {
-    const cells = layoutEl.querySelectorAll(SELECTORS.cellWithValue);
-    const rowFooterCells = layoutEl.querySelectorAll(SELECTORS.footerCell);
-    const summaryCells = layoutEl.querySelectorAll(SELECTORS.summaryCells);
+    const tableBody = layoutEl.querySelector(SELECTORS.tableBody);
+    const rowFooter = tableBody.querySelector(SELECTORS.rowFooter);
+
+    const remainingTimeRow = generateRemainingTimeRow(rowFooter);
+    tableBody.appendChild(remainingTimeRow);
+
+    const cells = tableBody.querySelectorAll(SELECTORS.cellWithValue);
+    const rowFooterCells = tableBody.querySelectorAll(SELECTORS.footerCell);
+    const summaryCells = tableBody.querySelectorAll(SELECTORS.summaryCells);
 
     handleMainCells(cells);
     handleBoldCells([...rowFooterCells, ...summaryCells]);
@@ -110,19 +153,19 @@
 
   const renderInitialLayout = ({ layoutEl, html }) => {
     layoutEl.innerHTML = `
-    <div class="layout layout-a">
-      <div class="my-gadget gadget color1" id="${IDS.myGadget}" style="position:relative">
-        ${html}
-      </div>
+  <div class="layout layout-a">
+    <div class="my-gadget gadget color1" id="${IDS.myGadget}" style="position:relative">
+      ${html}
     </div>
+  </div>
 
-    <div aria-hidden="true" class="backdrop">
-      <span class="backdrop-container" role="progressbar" style="width: 40px; height: 40px;">
-        <svg class="backdrop-svg" viewBox="22 22 44 44">
-          <circle class="backdrop-circle" cx="44" cy="44" r="20.2" fill="none" stroke-width="3.6"></circle>
-        </svg>
-      </span>
-    </div>
+  <div aria-hidden="true" class="backdrop">
+    <span class="backdrop-container" role="progressbar" style="width: 40px; height: 40px;">
+      <svg class="backdrop-svg" viewBox="22 22 44 44">
+        <circle class="backdrop-circle" cx="44" cy="44" r="20.2" fill="none" stroke-width="3.6"></circle>
+      </svg>
+    </span>
+  </div>
 `;
 
     calculateCellValues({ layoutEl });
@@ -137,10 +180,20 @@
     let error;
 
     try {
+      //TODO remove
+      const storagedHtml = localStorage.getItem("html");
+
+      if (storagedHtml) return { html: storagedHtml, error };
+      //TODO end
+
       const response = await fetch(`${baseURL}${now.getTime()}`, { signal });
       const { html: htmlData } = await response.json();
 
       html = htmlData;
+
+      //TODO remove
+      localStorage.setItem("html", html);
+      //TODO end
     } catch (err) {
       error = err;
     }
@@ -184,28 +237,28 @@
     formatterBtn.id = IDS.formatterBtn;
     formatterBtn.className = "btn";
     formatterBtn.innerHTML = `
-    <span class="btn-text">Formatuj czas</span>
-    <div class="spinner">
-      <div class="lds-ripple">
-        <div></div>
-        <div></div>
-      </div>
-    </div>`;
+  <span class="btn-text">Formatuj czas</span>
+  <div class="spinner">
+    <div class="lds-ripple">
+      <div></div>
+      <div></div>
+    </div>
+  </div>`;
 
     toastWrapper.innerHTML = `
-    <div id="toast" class="toast error" role="alert">
-      <div class="toast-icon-container">
-        <svg
-          class="toast-icon toast-icon--error"
-          focusable="false"
-          aria-hidden="true"
-          viewBox="0 0 24 24"
-        >
-          <path d="M11 15h2v2h-2zm0-8h2v6h-2zm.99-5C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zM12 20c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8z"></path>
-        </svg>
-      </div>
-      <div class="toast-message">Wystąpił błąd. Spróbuj ponownie później.</div>
-    </div>`;
+  <div id="toast" class="toast error" role="alert">
+    <div class="toast-icon-container">
+      <svg
+        class="toast-icon toast-icon--error"
+        focusable="false"
+        aria-hidden="true"
+        viewBox="0 0 24 24"
+      >
+        <path d="M11 15h2v2h-2zm0-8h2v6h-2zm.99-5C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zM12 20c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8z"></path>
+      </svg>
+    </div>
+    <div class="toast-message">Wystąpił błąd. Spróbuj ponownie później.</div>
+  </div>`;
 
     document.body.appendChild(formatterBtn);
     document.body.appendChild(toastWrapper);
