@@ -4,7 +4,8 @@
 // @version      0.1
 // @description  Format time into hours and minutes
 // @author       Łukasz Brzózko
-// @match        https://jira.nd0.pl/secure/Dashboard.jspa
+// @match        https://jira.nd0.pl/*
+// @exclude        https://jira.nd0.pl/plugins/servlet/*
 // @resource styles    https://raw.githubusercontent.com/lukasz-brzozko/jira-timesheet-formatter/main/styles.css
 // @icon         https://jira.nd0.pl/s/a3v501/940003/1dlckms/_/images/fav-jsw.png
 // @updateURL    https://raw.githubusercontent.com/lukasz-brzozko/jira-timesheet-formatter/main/timesheet.meta.js
@@ -17,6 +18,13 @@
 
   const WEEK_OFFSET = 0;
   const WORK_DAY_SHIFT_HOURS = 7.5;
+
+  const MESSAGES = {
+    containerFound: "Znaleziono kontener.",
+    containerNotFound: "Nie znaleziono kontenera. Skrypt został wstrzymany.",
+    error: "Wystąpił błąd. Spróbuj ponownie później.",
+    btnText: "Formatuj czasy",
+  };
 
   const SELECTORS = {
     cellWithValue: "td.nav.border.workedDay",
@@ -49,6 +57,7 @@
   let formatterBtnEl;
   let layoutEl;
   let toastEl;
+  let dashboardContentEl;
 
   const linkStyles = async () => {
     const myCss = GM_getResourceText("styles");
@@ -158,7 +167,7 @@
   const renderInitialLayout = ({ layoutEl, html }) => {
     layoutEl.innerHTML = `
   <div class="layout layout-a">
-    <div class="my-gadget gadget color1" id="${IDS.myGadget}" style="position:relative">
+    <div class="my-gadget gadget color1" id="${IDS.myGadget}">
       ${html}
     </div>
   </div>
@@ -216,7 +225,6 @@
 
   const renderContent = async () => {
     layoutEl = document.getElementById(IDS.layout);
-    const dashboardContentEl = document.getElementById(IDS.dashboardContent);
 
     toggleLoading(true);
     toastEl.classList.remove(STATE.visible);
@@ -241,7 +249,7 @@
     formatterBtn.id = IDS.formatterBtn;
     formatterBtn.className = "btn";
     formatterBtn.innerHTML = `
-  <span class="btn-text">Formatuj czas</span>
+  <span class="btn-text">${MESSAGES.btnText}</span>
   <div class="spinner">
     <div class="lds-ripple">
       <div></div>
@@ -261,7 +269,7 @@
         <path d="M11 15h2v2h-2zm0-8h2v6h-2zm.99-5C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zM12 20c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8z"></path>
       </svg>
     </div>
-    <div class="toast-message">Wystąpił błąd. Spróbuj ponownie później.</div>
+    <div class="toast-message">${MESSAGES.error}</div>
   </div>`;
 
     document.body.appendChild(formatterBtn);
@@ -273,7 +281,48 @@
     formatterBtn.addEventListener("click", renderContent);
   };
 
-  const init = () => {
+  const lookForAppContainer = async () => {
+    const DOMElements = await new Promise((resolve, reject) => {
+      const maxAttempts = 50;
+      let attempt = 0;
+
+      const setIntervalId = setInterval(() => {
+        dashboardContentEl = document.getElementById(IDS.dashboardContent);
+        if (dashboardContentEl) {
+          clearInterval(setIntervalId);
+          window.console.info(
+            `%c ${MESSAGES.containerFound}`,
+            "background: #B7E1CD; color: #000; font-size: 20px"
+          );
+          resolve({ container: dashboardContentEl });
+        } else {
+          if (attempt >= maxAttempts) {
+            clearInterval(setIntervalId);
+            reject({ error: MESSAGES.containerNotFound });
+          } else {
+            attempt++;
+          }
+        }
+      }, 300);
+    });
+
+    return DOMElements;
+  };
+
+  const handleContainerNotFound = () => {
+    window.console.error(
+      `%c ${MESSAGES.error}`,
+      "background: red; color: #fff; font-size: 20px"
+    );
+  };
+
+  const init = async () => {
+    try {
+      const { error, container } = await lookForAppContainer();
+    } catch (err) {
+      return handleContainerNotFound();
+    }
+
     linkStyles();
     generateUiElements();
   };
