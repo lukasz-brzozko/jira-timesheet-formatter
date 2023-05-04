@@ -193,20 +193,10 @@
     let error;
 
     try {
-      //TODO remove
-      const storagedHtml = localStorage.getItem("html");
-
-      if (storagedHtml) return { html: storagedHtml, error };
-      //TODO end
-
       const response = await fetch(`${baseURL}${now.getTime()}`, { signal });
       const { html: htmlData } = await response.json();
 
       html = htmlData;
-
-      //TODO remove
-      localStorage.setItem("html", html);
-      //TODO end
     } catch (err) {
       error = err;
     }
