@@ -598,10 +598,12 @@ div.calendar {
 
 .complete {
   background-color: #edf7ed;
+  color: #1e4620;
 }
 
 .not-complete {
   background-color: #fdeded;
+  color: #5f2120;
 }
 
 .btn,
