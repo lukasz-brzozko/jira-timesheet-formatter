@@ -1,11 +1,11 @@
 // ==UserScript==
 // @name         Jira Time Sheet Formatter
 // @namespace    https://github.com/lukasz-brzozko/jira-timesheet-formatter
-// @version      0.1
+// @version      0.2
 // @description  Format time into hours and minutes
 // @author       Łukasz Brzózko
 // @match        https://jira.nd0.pl/*
-// @exclude        https://jira.nd0.pl/plugins/servlet/*
+// @exclude      https://jira.nd0.pl/plugins/servlet/*
 // @resource styles    https://raw.githubusercontent.com/lukasz-brzozko/jira-timesheet-formatter/main/styles.css
 // @icon         https://jira.nd0.pl/s/a3v501/940003/1dlckms/_/images/fav-jsw.png
 // @updateURL    https://raw.githubusercontent.com/lukasz-brzozko/jira-timesheet-formatter/main/timesheet.meta.js
@@ -24,6 +24,7 @@
     containerNotFound: "Nie znaleziono kontenera. Skrypt został wstrzymany.",
     error: "Wystąpił błąd. Spróbuj ponownie później.",
     btnText: "Formatuj czasy",
+    remainingTimeTitle: "Remaining time:",
   };
 
   const SELECTORS = {
@@ -50,8 +51,9 @@
     notComplete: "not-complete",
   };
 
-  const baseURL = `https://jira.nd0.pl/rest/timesheet-gadget/1.0/timesheet.json?isGadget=true&baseUrl=https%3A%2F%2Fjira.nd0.pl&gadgetTitle=&startDate=&targetUser=&targetGroup=&collapseFieldGroups=false&excludeTargetGroup=&numOfWeeks=1&reportingDay=&projectOrFilter=&projectid=&filterid=&projectRoleId=&commentfirstword=&weekends=true&showDetails=true&sumSubTasks=false&showEmptyRows=false&groupByField=&moreFields=&offset=${WEEK_OFFSET}&page=1&monthView=false&sum=&sortBy=&sortDir=ASC&_=`;
+  const BASE_URL = `https://jira.nd0.pl/rest/timesheet-gadget/1.0/timesheet.json?isGadget=true&baseUrl=https%3A%2F%2Fjira.nd0.pl&gadgetTitle=&startDate=&targetUser=&targetGroup=&collapseFieldGroups=false&excludeTargetGroup=&numOfWeeks=1&reportingDay=&projectOrFilter=&projectid=&filterid=&projectRoleId=&commentfirstword=&weekends=true&showDetails=true&sumSubTasks=false&showEmptyRows=false&groupByField=&moreFields=&offset=${WEEK_OFFSET}&page=1&monthView=false&sum=&sortBy=&sortDir=ASC&_=`;
   const now = new Date();
+  const fetchUrl = `${BASE_URL}${now.getTime()}`;
 
   let controller;
   let formatterBtnEl;
@@ -131,7 +133,8 @@
     const boldCells = remainingTimeRow.querySelectorAll(SELECTORS.boldCell);
 
     boldCells[boldCells.length - 1].textContent = "";
-    remainingTimeRow.firstElementChild.textContent = "Remaining time:";
+    remainingTimeRow.firstElementChild.textContent =
+      MESSAGES.remainingTimeTitle;
 
     boldCells.forEach(calculateRemainingTime);
 
@@ -193,7 +196,7 @@
     let error;
 
     try {
-      const response = await fetch(`${baseURL}${now.getTime()}`, { signal });
+      const response = await fetch(fetchUrl, { signal });
       const { html: htmlData } = await response.json();
 
       html = htmlData;
