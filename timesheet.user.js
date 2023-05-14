@@ -25,9 +25,16 @@
     containerFound: "Znaleziono kontener.",
     btnText: "Formatuj czasy",
     remainingTimeTitle: "Remaining time:",
+    modal: {
+      title: "Skonfigurowana tabela",
+      desc: "Podaj API URL skonfigurowanej tabeli gadgetu Jira Time Sheet. Pozostaw puste, aby skorzystać z domyślnej konfiguracji.",
+      label: "API URL",
+      cancelBtn: "Anuluj",
+      confirmBtn: "Zapisz",
+    },
     error: {
       default: "Wystąpił błąd. Spróbuj ponownie później.",
-      wrongUrl: "Wystąpił błąd. Sprawdź poprawność podanego adresu URL.",
+      wrongUrl: "Wystąpił błąd. Sprawdź poprawność podanego adresu API URL.",
       containerNotFound: "Nie znaleziono kontenera. Skrypt został wstrzymany.",
     },
   };
@@ -287,8 +294,13 @@
     modalFormWrapperEl.classList.toggle(STATE.filled, !isInputEmpty);
   };
 
+  const setInputCustomUrl = () => {
+    const customUrl = localStorage.getItem(JIRA_CUSTOM_URL) ?? "";
+    modalInputUrlEl.value = customUrl;
+  };
+
   const handleModalTransitionEnd = (e) => {
-    modalInputUrlEl.value = localStorage.getItem(JIRA_CUSTOM_URL) ?? "";
+    setInputCustomUrl();
     toggleModalFormWrapperFilledState(modalInputUrlEl);
 
     myModalEl.removeEventListener("transitionend", handleModalTransitionEnd);
@@ -299,9 +311,7 @@
   };
 
   const openModal = () => {
-    const customUrl = localStorage.getItem(JIRA_CUSTOM_URL) ?? "";
-    modalInputUrlEl.value = customUrl;
-
+    setInputCustomUrl();
     toggleModalFormWrapperFilledState(modalInputUrlEl);
     toggleModal(true);
   };
@@ -316,8 +326,27 @@
     closeModal();
   };
 
+  const handleModalError = () => {};
+
+  const validateInputUrl = () => {
+    const isInputEmpty = modalInputUrlEl.value === "";
+    const isValueValid = modalInputUrlEl.value.match(regExp);
+
+    const isInputValid = !(!isInputEmpty && !isValueValid);
+
+    return isInputValid;
+  };
+
   const handleConfirmModal = () => {
-    localStorage.setItem(JIRA_CUSTOM_URL, modalInputUrlEl.value);
+    // const regExp = new RegExp(
+    //   "^https://jira.nd0.pl/rest/timesheet-gadget/1.0/timesheet.json?.*=d{13}$"
+    // );
+
+    // const isInputValid = validateInputUrl();
+
+    // if (!isInputValid) return handleModalError();
+
+    localStorage.setItem(JIRA_CUSTOM_URL, modalInputUrlEl.value.trim());
 
     closeModal();
 
@@ -338,74 +367,105 @@
     modalFormWrapperEl.classList.toggle(STATE.filled, !isInputEmpty);
   };
 
-  const generateUiElements = () => {
-    const toastWrapper = document.createElement("div");
-    const modal = document.createElement("div");
+  const generateBtnsWrapper = () => {
     const btnsWrapper = document.createElement("div");
-    const formatterBtn = document.createElement("button");
-    const settingsBtn = document.createElement("button");
-
-    const fragment = new DocumentFragment();
-
     btnsWrapper.className = "btn-wrapper";
+
+    return btnsWrapper;
+  };
+
+  const generateSettingsBtn = () => {
+    const settingsBtn = document.createElement("button");
 
     settingsBtn.id = IDS.settingsBtn;
     settingsBtn.className = "btn btn--outline btn--small";
     settingsBtn.innerHTML = `
-    <span class="btn-text">
-      <svg class="icon" focusable="false" aria-hidden="true" viewBox="0 0 24 24" tabindex="-1" title="Settings"><path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"></path></svg>
-    </span>`;
+      <span class="btn-text">
+        <svg class="icon" focusable="false" aria-hidden="true" viewBox="0 0 24 24" tabindex="-1" title="Settings"><path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"></path></svg>
+      </span>`;
+
+    return settingsBtn;
+  };
+
+  const generateFormatterBtn = () => {
+    const formatterBtn = document.createElement("button");
 
     formatterBtn.id = IDS.formatterBtn;
     formatterBtn.className = "btn format-btn";
     formatterBtn.innerHTML = `
-  <span class="btn-text">${MESSAGES.btnText}</span>
-  <div class="spinner">
-    <div class="lds-ripple">
-      <div></div>
-      <div></div>
-    </div>
-  </div>`;
+      <span class="btn-text">${MESSAGES.btnText}</span>
+      <div class="spinner">
+        <div class="lds-ripple">
+          <div></div>
+          <div></div>
+        </div>
+      </div>`;
+
+    return formatterBtn;
+  };
+
+  const generateModal = () => {
+    const modal = document.createElement("div");
 
     modal.id = IDS.myModal;
     modal.className = "my-modal active";
     modal.innerHTML = `
-    <div class="modal-overlay" id="modal-overlay"></div>
-    <div class="modal-wrapper">
-      <h2 class="modal-title">Skonfigurowana tabela</h2>
-      <div class="modal-content-container">
-        <p class="modal-desc">Podaj adres URL skonfigurowanej tabeli gadgetu Jira Time Sheet. Pozostaw puste aby skorzystać z domyślnej konfiguracji.</p>
-        <div class="modal-form-wrapper ${
-          (localStorage.getItem(JIRA_CUSTOM_URL) ?? "") && STATE.filled
-        }" id="${IDS.modalFormWrapper}">
-          <label class="modal-label">API URL</label>
-          <div class="modal-input-wrapper">
-            <input class="modal-input" id="modal-input-url" value>
+      <div class="modal-overlay" id="modal-overlay"></div>
+      <div class="modal-wrapper">
+        <h2 class="modal-title">${MESSAGES.modal.title}</h2>
+        <div class="modal-content-container">
+          <p class="modal-desc">${MESSAGES.modal.desc}</p>
+          <div class="modal-form-wrapper ${
+            (localStorage.getItem(JIRA_CUSTOM_URL) ?? "") && STATE.filled
+          }" id="${IDS.modalFormWrapper}">
+            <label class="modal-label">${MESSAGES.modal.label}</label>
+            <div class="modal-input-wrapper">
+              <input class="modal-input" id="modal-input-url" value>
+            </div>
           </div>
         </div>
-      </div>
-      <div class="modal-btn-wrapper">
-        <button class="btn btn--light" id="${
-          IDS.modalCancelBtn
-        }">Anuluj</button>
-        <button class="btn" id="${IDS.modalConfirmBtn}">Zapisz</button>
-      </div>
-    </div>`;
+        <div class="modal-btn-wrapper">
+          <button class="btn btn--light" id="${IDS.modalCancelBtn}">${
+      MESSAGES.modal.cancelBtn
+    }</button>
+          <button class="btn" id="${IDS.modalConfirmBtn}">${
+      MESSAGES.modal.confirmBtn
+    }</button>
+        </div>
+      </div>`;
+
+    return modal;
+  };
+
+  const generateToast = () => {
+    const toastWrapper = document.createElement("div");
 
     toastWrapper.innerHTML = `
-  <div id="toast" class="toast error" role="alert">
-    <div class="toast-icon-container">
-      <svg
-        class="toast-icon toast-icon--error"
-        focusable="false"
-        aria-hidden="true"
-        viewBox="0 0 24 24"
-      >
-        <path d="M11 15h2v2h-2zm0-8h2v6h-2zm.99-5C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zM12 20c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8z"></path>
-      </svg>
-    </div>
-    <div class="toast-message" id="${IDS.toastMessage}">${MESSAGES.error.default}</div>
-  </div>`;
+    <div id="toast" class="toast error" role="alert">
+      <div class="toast-icon-container">
+        <svg
+          class="toast-icon toast-icon--error"
+          focusable="false"
+          aria-hidden="true"
+          viewBox="0 0 24 24"
+        >
+          <path d="M11 15h2v2h-2zm0-8h2v6h-2zm.99-5C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zM12 20c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8z"></path>
+        </svg>
+      </div>
+      <div class="toast-message" id="${IDS.toastMessage}">${MESSAGES.error.default}</div>
+    </div>`;
+
+    return toastWrapper;
+  };
+
+  const generateUiElements = () => {
+    const fragment = new DocumentFragment();
+
+    const btnsWrapper = generateBtnsWrapper();
+    const settingsBtn = generateSettingsBtn();
+    const formatterBtn = generateFormatterBtn();
+    const toastWrapper = generateToast();
+    const modal = generateModal();
 
     btnsWrapper.appendChild(settingsBtn);
     btnsWrapper.appendChild(formatterBtn);
