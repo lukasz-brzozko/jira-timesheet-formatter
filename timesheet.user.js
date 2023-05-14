@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Jira Time Sheet Formatter
 // @namespace    https://github.com/lukasz-brzozko/jira-timesheet-formatter
-// @version      0.2
+// @version      0.3
 // @description  Format time into hours and minutes
 // @author       Łukasz Brzózko
 // @match        https://jira.nd0.pl/*
@@ -36,6 +36,10 @@
       default: "Wystąpił błąd. Spróbuj ponownie później.",
       wrongUrl: "Wystąpił błąd. Sprawdź poprawność podanego adresu API URL.",
       containerNotFound: "Nie znaleziono kontenera. Skrypt został wstrzymany.",
+      modal: {
+        inputUrl:
+          "Podano nieprawidłowy URL. Adres powinien być zgodny ze schematem: https://jira.nd0.pl/rest/timesheet-gadget/1.0/timesheet.json?{parametry}={trzynaście cyfr}",
+      },
     },
   };
 
@@ -62,6 +66,7 @@
     modalConfirmBtn: "modal-confirm-btn",
     modalFormWrapper: "modal-form-wrapper",
     modalInputUrl: "modal-input-url",
+    modalInputErrorWrapper: "modal-input-error-wrapper",
   };
 
   const STATE = {
@@ -71,6 +76,7 @@
     notComplete: "not-complete",
     focus: "focus",
     filled: "filled",
+    disabled: "disabled",
   };
 
   let controller;
@@ -81,8 +87,11 @@
   let dashboardContentEl;
   let settingsBtnEl;
   let myModalEl;
+  let modalCancelBtnEl;
+  let modalConfirmBtnEl;
   let modalFormWrapperEl;
   let modalInputUrlEl;
+  let modalInputErrorWrapperEl;
 
   const linkStyles = async () => {
     const myCss = GM_getResourceText("styles");
@@ -324,11 +333,19 @@
     myModalEl.addEventListener("transitionend", handleModalTransitionEnd);
 
     closeModal();
+    toggleModalError(false);
   };
 
-  const handleModalError = () => {};
+  const toggleModalError = (force) => {
+    modalInputErrorWrapperEl.classList.toggle(STATE.visible, force);
+    modalConfirmBtnEl.toggleAttribute(STATE.disabled, force);
+  };
 
   const validateInputUrl = () => {
+    const regExp = new RegExp(
+      /^https:\/\/jira\.nd0\.pl\/rest\/timesheet-gadget\/1\.0\/timesheet\.json\?.*=\d{13}$/
+    );
+
     const isInputEmpty = modalInputUrlEl.value === "";
     const isValueValid = modalInputUrlEl.value.match(regExp);
 
@@ -338,13 +355,9 @@
   };
 
   const handleConfirmModal = () => {
-    // const regExp = new RegExp(
-    //   "^https://jira.nd0.pl/rest/timesheet-gadget/1.0/timesheet.json?.*=d{13}$"
-    // );
+    const isInputValid = validateInputUrl();
 
-    // const isInputValid = validateInputUrl();
-
-    // if (!isInputValid) return handleModalError();
+    if (!isInputValid) return toggleModalError(true);
 
     localStorage.setItem(JIRA_CUSTOM_URL, modalInputUrlEl.value.trim());
 
@@ -365,6 +378,12 @@
     const isInputEmpty = e.target.value === "";
 
     modalFormWrapperEl.classList.toggle(STATE.filled, !isInputEmpty);
+  };
+
+  const handleInput = () => {
+    if (!modalInputErrorWrapperEl.classList.contains(STATE.visible)) return;
+
+    toggleModalError(false);
   };
 
   const generateBtnsWrapper = () => {
@@ -421,6 +440,11 @@
             <label class="modal-label">${MESSAGES.modal.label}</label>
             <div class="modal-input-wrapper">
               <input class="modal-input" id="modal-input-url" value>
+            </div>
+            <div class="modal-input-error-wrapper" id="${
+              IDS.modalInputErrorWrapper
+            }">
+              <p class="modal-input-error">${MESSAGES.error.modal.inputUrl}</p>
             </div>
           </div>
         </div>
@@ -480,12 +504,13 @@
     myModalEl = document.getElementById(IDS.myModal);
     toastMessageEl = toastEl.querySelector(`#${IDS.toastMessage}`);
     modalFormWrapperEl = myModalEl.querySelector(`#${IDS.modalFormWrapper}`);
-    modalInputUrlEl = modalFormWrapperEl.querySelector(`#${IDS.modalInputUrl}`);
-    const modalOverlayEl = myModalEl.querySelector(`#${IDS.modalOverlay}`);
-    const modalCancelBtnEl = myModalEl.querySelector(`#${IDS.modalCancelBtn}`);
-    const modalConfirmBtnEl = myModalEl.querySelector(
-      `#${IDS.modalConfirmBtn}`
+    modalInputErrorWrapperEl = myModalEl.querySelector(
+      `#${IDS.modalInputErrorWrapper}`
     );
+    modalInputUrlEl = modalFormWrapperEl.querySelector(`#${IDS.modalInputUrl}`);
+    modalCancelBtnEl = myModalEl.querySelector(`#${IDS.modalCancelBtn}`);
+    modalConfirmBtnEl = myModalEl.querySelector(`#${IDS.modalConfirmBtn}`);
+    const modalOverlayEl = myModalEl.querySelector(`#${IDS.modalOverlay}`);
 
     formatterBtn.addEventListener("click", renderContent);
     settingsBtnEl.addEventListener("click", openModal);
@@ -495,6 +520,7 @@
     modalInputUrlEl.addEventListener("focus", handleInputFocus);
     modalInputUrlEl.addEventListener("blur", handleInputBlur);
     modalInputUrlEl.addEventListener("change", handleInputChange);
+    modalInputUrlEl.addEventListener("input", handleInput);
   };
 
   const lookForAppContainer = async () => {
