@@ -53,6 +53,7 @@
     modalOverlay: "modal-overlay",
     modalCancelBtn: "modal-cancel-btn",
     modalConfirmBtn: "modal-confirm-btn",
+    modalFormWrapper: "modal-form-wrapper",
     modalInputUrl: "modal-input-url",
   };
 
@@ -61,6 +62,8 @@
     visible: "visible",
     complete: "complete",
     notComplete: "not-complete",
+    focus: "focus",
+    filled: "filled",
   };
 
   let controller;
@@ -71,6 +74,7 @@
   let dashboardContentEl;
   let settingsBtnEl;
   let myModalEl;
+  let modalFormWrapperEl;
   let modalInputUrlEl;
 
   const linkStyles = async () => {
@@ -277,6 +281,19 @@
     dashboardContentEl.appendChild(layoutEl);
   };
 
+  const toggleModalFormWrapperFilledState = (input) => {
+    const isInputEmpty = input.value === "";
+
+    modalFormWrapperEl.classList.toggle(STATE.filled, !isInputEmpty);
+  };
+
+  const handleModalTransitionEnd = (e) => {
+    modalInputUrlEl.value = localStorage.getItem(JIRA_CUSTOM_URL) ?? "";
+    toggleModalFormWrapperFilledState(modalInputUrlEl);
+
+    myModalEl.removeEventListener("transitionend", handleModalTransitionEnd);
+  };
+
   const toggleModal = (force = undefined) => {
     myModalEl.classList.toggle(STATE.visible, force);
   };
@@ -285,19 +302,40 @@
     const customUrl = localStorage.getItem(JIRA_CUSTOM_URL) ?? "";
     modalInputUrlEl.value = customUrl;
 
+    toggleModalFormWrapperFilledState(modalInputUrlEl);
     toggleModal(true);
   };
 
-  const hideModal = () => {
+  const closeModal = () => {
     toggleModal(false);
+  };
+
+  const handleCancelModal = () => {
+    myModalEl.addEventListener("transitionend", handleModalTransitionEnd);
+
+    closeModal();
   };
 
   const handleConfirmModal = () => {
     localStorage.setItem(JIRA_CUSTOM_URL, modalInputUrlEl.value);
 
-    hideModal();
+    closeModal();
 
     formatterBtnEl.click();
+  };
+
+  const handleInputFocus = (e) => {
+    modalFormWrapperEl.classList.add(STATE.focus);
+  };
+
+  const handleInputBlur = (e) => {
+    modalFormWrapperEl.classList.remove(STATE.focus);
+  };
+
+  const handleInputChange = (e) => {
+    const isInputEmpty = e.target.value === "";
+
+    modalFormWrapperEl.classList.toggle(STATE.filled, !isInputEmpty);
   };
 
   const generateUiElements = () => {
@@ -337,7 +375,9 @@
       <h2 class="modal-title">Skonfigurowana tabela</h2>
       <div class="modal-content-container">
         <p class="modal-desc">Podaj adres URL skonfigurowanej tabeli gadgetu Jira Time Sheet. Pozostaw puste aby skorzystać z domyślnej konfiguracji.</p>
-        <div class="modal-form-wrapper">
+        <div class="modal-form-wrapper ${
+          (localStorage.getItem(JIRA_CUSTOM_URL) ?? "") && STATE.filled
+        }" id="${IDS.modalFormWrapper}">
           <label class="modal-label">API URL</label>
           <div class="modal-input-wrapper">
             <input class="modal-input" id="modal-input-url" value>
@@ -345,7 +385,9 @@
         </div>
       </div>
       <div class="modal-btn-wrapper">
-        <button class="btn btn--light" id="${IDS.modalCancelBtn}">Anuluj</button>
+        <button class="btn btn--light" id="${
+          IDS.modalCancelBtn
+        }">Anuluj</button>
         <button class="btn" id="${IDS.modalConfirmBtn}">Zapisz</button>
       </div>
     </div>`;
@@ -377,8 +419,8 @@
     toastEl = document.getElementById(IDS.toast);
     myModalEl = document.getElementById(IDS.myModal);
     toastMessageEl = toastEl.querySelector(`#${IDS.toastMessage}`);
-    modalInputUrlEl = myModalEl.querySelector(`#${IDS.modalInputUrl}`);
-
+    modalFormWrapperEl = myModalEl.querySelector(`#${IDS.modalFormWrapper}`);
+    modalInputUrlEl = modalFormWrapperEl.querySelector(`#${IDS.modalInputUrl}`);
     const modalOverlayEl = myModalEl.querySelector(`#${IDS.modalOverlay}`);
     const modalCancelBtnEl = myModalEl.querySelector(`#${IDS.modalCancelBtn}`);
     const modalConfirmBtnEl = myModalEl.querySelector(
@@ -387,9 +429,12 @@
 
     formatterBtn.addEventListener("click", renderContent);
     settingsBtnEl.addEventListener("click", openModal);
-    modalOverlayEl.addEventListener("click", hideModal);
-    modalCancelBtnEl.addEventListener("click", hideModal);
+    modalOverlayEl.addEventListener("click", handleCancelModal);
+    modalCancelBtnEl.addEventListener("click", handleCancelModal);
     modalConfirmBtnEl.addEventListener("click", handleConfirmModal);
+    modalInputUrlEl.addEventListener("focus", handleInputFocus);
+    modalInputUrlEl.addEventListener("blur", handleInputBlur);
+    modalInputUrlEl.addEventListener("change", handleInputChange);
   };
 
   const lookForAppContainer = async () => {

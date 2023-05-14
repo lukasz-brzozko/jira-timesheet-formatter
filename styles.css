@@ -1021,6 +1021,15 @@ div.calendar {
     max-width 200ms cubic-bezier(0, 0, 0.2, 1) 0ms;
 }
 
+.modal-form-wrapper.filled > .modal-label,
+.modal-form-wrapper.focus > .modal-label {
+  transform: translate(0px, -1.5px) scale(0.75);
+}
+
+.modal-form-wrapper.focus > .modal-label {
+  color: rgb(25, 118, 210);
+}
+
 .modal-input-wrapper {
   font-weight: 400;
   font-size: 1rem;
@@ -1051,10 +1060,19 @@ div.calendar {
   transition: border-bottom-color 200ms cubic-bezier(0.4, 0, 0.2, 1) 0ms;
 }
 
+.modal-input-wrapper:hover::before,
+.modal-form-wrapper.focus > .modal-input-wrapper::before {
+  border-bottom: 2px solid rgba(0, 0, 0, 0.87);
+}
+
 .modal-input-wrapper::after {
   border-bottom: 2px solid rgb(25, 118, 210);
   transform: scaleX(0);
   transition: transform 200ms cubic-bezier(0, 0, 0.2, 1) 0ms;
+}
+
+.modal-form-wrapper.focus > .modal-input-wrapper::after {
+  transform: scaleX(1) translateX(0px);
 }
 
 .modal-input {
