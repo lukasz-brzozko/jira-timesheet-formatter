@@ -252,11 +252,13 @@
     try {
       const response = await fetch(generateFetchUrl(), { signal });
 
-      if (isBetween(response.status, 400, 500))
+      if (isBetween(response.status, 400, 500)) {
         return { error: MESSAGES.error.wrongUrl };
+      }
 
-      if (!isBetween(response.status, 200, 300))
+      if (!isBetween(response.status, 200, 300)) {
         return { error: MESSAGES.error.default };
+      }
 
       const { html: htmlData } = await response.json();
 
