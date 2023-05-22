@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Jira Time Sheet Formatter
 // @namespace    https://github.com/lukasz-brzozko/jira-timesheet-formatter
-// @version      0.3.1
+// @version      0.3.2
 // @description  Format time into hours and minutes
 // @author       Łukasz Brzózko
 // @match        https://jira.nd0.pl/*
@@ -18,7 +18,7 @@
 
   const WEEK_OFFSET = 0;
   const WORK_DAY_SHIFT_HOURS = 7.5;
-  const DEAFULT_BASE_URL = `https://jira.nd0.pl/rest/timesheet-gadget/1.0/timesheet.json?isGadget=true&baseUrl=https%3A%2F%2Fjira.nd0.pl&gadgetTitle=&startDate=&targetUser=&targetGroup=&collapseFieldGroups=false&excludeTargetGroup=&numOfWeeks=1&reportingDay=&projectOrFilter=&projectid=&filterid=&projectRoleId=&commentfirstword=&weekends=true&showDetails=true&sumSubTasks=false&showEmptyRows=false&groupByField=&moreFields=&offset=${WEEK_OFFSET}&page=1&monthView=false&sum=&sortBy=&sortDir=ASC&_=`;
+  const DEAFULT_BASE_URL = `https://jira.nd0.pl/rest/timesheet-gadget/1.0/timesheet.json?isGadget=true&baseUrl=https%3A%2F%2Fjira.nd0.pl&gadgetTitle=&startDate=&targetUser=&targetGroup=&collapseFieldGroups=false&excludeTargetGroup=&numOfWeeks=1&reportingDay=&projectOrFilter=&projectid=&filterid=&projectRoleId=&commentfirstword=&weekends=false&showDetails=true&sumSubTasks=false&showEmptyRows=false&groupByField=&moreFields=&offset=${WEEK_OFFSET}&page=1&monthView=false&sum=&sortBy=&sortDir=ASC&_=`;
   const JIRA_CUSTOM_URL = "JIRA_CUSTOM_URL";
 
   const MESSAGES = {
