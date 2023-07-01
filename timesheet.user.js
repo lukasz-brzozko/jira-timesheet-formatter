@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Jira Time Sheet Formatter
 // @namespace    https://github.com/lukasz-brzozko/jira-timesheet-formatter
-// @version      0.3.2
+// @version      0.4.0
 // @description  Format time into hours and minutes
 // @author       Łukasz Brzózko
 // @match        https://jira.nd0.pl/*
@@ -20,6 +20,7 @@
   const WORK_DAY_SHIFT_HOURS = 7.5;
   const DEAFULT_BASE_URL = `https://jira.nd0.pl/rest/timesheet-gadget/1.0/timesheet.json?isGadget=true&baseUrl=https%3A%2F%2Fjira.nd0.pl&gadgetTitle=&startDate=&targetUser=&targetGroup=&collapseFieldGroups=false&excludeTargetGroup=&numOfWeeks=1&reportingDay=&projectOrFilter=&projectid=&filterid=&projectRoleId=&commentfirstword=&weekends=false&showDetails=true&sumSubTasks=false&showEmptyRows=false&groupByField=&moreFields=&offset=${WEEK_OFFSET}&page=1&monthView=false&sum=&sortBy=&sortDir=ASC&_=`;
   const JIRA_CUSTOM_URL = "JIRA_CUSTOM_URL";
+  const JIRA_WEEK_OFFSET = "JIRA_WEEK_OFFSET";
 
   const MESSAGES = {
     containerFound: "Znaleziono kontener.",
@@ -29,6 +30,7 @@
       title: "Skonfigurowana tabela",
       desc: "Podaj API URL skonfigurowanej tabeli gadgetu Jira Time Sheet. Pozostaw puste, aby skorzystać z domyślnej konfiguracji.",
       label: "API URL",
+      offsetLabel: "OFFSET",
       cancelBtn: "Anuluj",
       confirmBtn: "Zapisz",
     },
@@ -50,6 +52,8 @@
     summaryCells: "tbody > tr > td:last-child > b",
     tableBody: "#issuetable > tbody",
     boldCell: "td > b",
+    modalInput: ".modal-input",
+    modalFormWrapper: ".modal-form-wrapper",
   };
 
   const IDS = {
@@ -65,7 +69,9 @@
     modalCancelBtn: "modal-cancel-btn",
     modalConfirmBtn: "modal-confirm-btn",
     modalFormWrapper: "modal-form-wrapper",
+    modalFormOffsetWrapper: "modal-form-offset-wrapper",
     modalInputUrl: "modal-input-url",
+    modalInputOffset: "modal-input-offset",
     modalInputErrorWrapper: "modal-input-error-wrapper",
   };
 
@@ -91,7 +97,9 @@
   let modalConfirmBtnEl;
   let modalFormWrapperEl;
   let modalInputUrlEl;
+  let modalInputOffsetEl;
   let modalInputErrorWrapperEl;
+  let modalInputsEls = [];
 
   const linkStyles = async () => {
     const myCss = GM_getResourceText("styles");
@@ -116,7 +124,18 @@
     const now = new Date();
     const fetchUrl = `${baseUrl}${now.getTime()}`;
 
-    return fetchUrl;
+    const customWeekOffset = localStorage.getItem(JIRA_WEEK_OFFSET);
+    const parsedCustomWeekOffset = parseInt(customWeekOffset, 10);
+
+    if (isNaN(parsedCustomWeekOffset)) return fetchUrl;
+
+    const url = new URL(fetchUrl);
+    const urlParams = new URLSearchParams(url.search);
+    urlParams.set("offset", customWeekOffset);
+
+    url.search = urlParams.toString();
+
+    return url;
   };
 
   const toggleLoading = (force = undefined) => {
@@ -302,7 +321,8 @@
   const toggleModalFormWrapperFilledState = (input) => {
     const isInputEmpty = input.value === "";
 
-    modalFormWrapperEl.classList.toggle(STATE.filled, !isInputEmpty);
+    const inputWrapper = input.closest(SELECTORS.modalFormWrapper);
+    inputWrapper.classList.toggle(STATE.filled, !isInputEmpty);
   };
 
   const setInputCustomUrl = () => {
@@ -310,9 +330,16 @@
     modalInputUrlEl.value = customUrl;
   };
 
+  const setInputCustomWeekOffset = () => {
+    const customWeekOffset = localStorage.getItem(JIRA_WEEK_OFFSET) ?? "";
+    modalInputOffsetEl.value = customWeekOffset;
+  };
+
   const handleModalTransitionEnd = (e) => {
     setInputCustomUrl();
-    toggleModalFormWrapperFilledState(modalInputUrlEl);
+    setInputCustomWeekOffset();
+
+    modalInputsEls.forEach((input) => toggleModalFormWrapperFilledState(input));
 
     myModalEl.removeEventListener("transitionend", handleModalTransitionEnd);
   };
@@ -323,7 +350,8 @@
 
   const openModal = () => {
     setInputCustomUrl();
-    toggleModalFormWrapperFilledState(modalInputUrlEl);
+    setInputCustomWeekOffset();
+    modalInputsEls.forEach((input) => toggleModalFormWrapperFilledState(input));
     toggleModal(true);
   };
 
@@ -357,10 +385,11 @@
   };
 
   const handleConfirmModal = () => {
-    const isInputValid = validateInputUrl();
+    const isUrlInputValid = validateInputUrl();
 
-    if (!isInputValid) return toggleModalError(true);
+    if (!isUrlInputValid) return toggleModalError(true);
 
+    localStorage.setItem(JIRA_WEEK_OFFSET, modalInputOffsetEl.value.trim());
     localStorage.setItem(JIRA_CUSTOM_URL, modalInputUrlEl.value.trim());
 
     closeModal();
@@ -369,17 +398,28 @@
   };
 
   const handleInputFocus = (e) => {
-    modalFormWrapperEl.classList.add(STATE.focus);
+    const inputWrapper = e.target.closest(SELECTORS.modalFormWrapper);
+    inputWrapper.classList.add(STATE.focus);
   };
 
   const handleInputBlur = (e) => {
-    modalFormWrapperEl.classList.remove(STATE.focus);
+    const { target } = e;
+
+    const isInputValid = target.checkValidity();
+
+    if (!isInputValid) target.value = "";
+
+    const inputWrapper = target.closest(SELECTORS.modalFormWrapper);
+    inputWrapper.classList.remove(STATE.focus);
   };
 
   const handleInputChange = (e) => {
-    const isInputEmpty = e.target.value === "";
+    const { target } = e;
 
-    modalFormWrapperEl.classList.toggle(STATE.filled, !isInputEmpty);
+    const isInputEmpty = target.value === "";
+
+    const inputWrapper = target.closest(SELECTORS.modalFormWrapper);
+    inputWrapper.classList.toggle(STATE.filled, !isInputEmpty);
   };
 
   const handleInput = () => {
@@ -449,6 +489,17 @@
               <p class="modal-input-error">${MESSAGES.error.modal.inputUrl}</p>
             </div>
           </div>
+          <div class="modal-form-wrapper ${
+            (localStorage.getItem(JIRA_WEEK_OFFSET) ?? "") && STATE.filled
+          }" id="${IDS.modalFormOffsetWrapper}">
+            <label class="modal-label">${MESSAGES.modal.offsetLabel}</label>
+            <div class="modal-input-wrapper">
+              <input type="number" class="modal-input" id="modal-input-offset" value>
+            </div>
+            <div class="modal-input-error-wrapper">
+              <p class="modal-input-error"></p>
+            </div>
+          </div>
         </div>
         <div class="modal-btn-wrapper">
           <button class="btn btn--light" id="${IDS.modalCancelBtn}">${
@@ -505,24 +556,28 @@
     toastEl = document.getElementById(IDS.toast);
     myModalEl = document.getElementById(IDS.myModal);
     toastMessageEl = toastEl.querySelector(`#${IDS.toastMessage}`);
+    modalInputsEls = myModalEl.querySelectorAll(SELECTORS.modalInput);
     modalFormWrapperEl = myModalEl.querySelector(`#${IDS.modalFormWrapper}`);
     modalInputErrorWrapperEl = myModalEl.querySelector(
       `#${IDS.modalInputErrorWrapper}`
     );
-    modalInputUrlEl = modalFormWrapperEl.querySelector(`#${IDS.modalInputUrl}`);
     modalCancelBtnEl = myModalEl.querySelector(`#${IDS.modalCancelBtn}`);
     modalConfirmBtnEl = myModalEl.querySelector(`#${IDS.modalConfirmBtn}`);
     const modalOverlayEl = myModalEl.querySelector(`#${IDS.modalOverlay}`);
+    [modalInputUrlEl, modalInputOffsetEl] = modalInputsEls;
 
     formatterBtn.addEventListener("click", renderContent);
     settingsBtnEl.addEventListener("click", openModal);
     modalOverlayEl.addEventListener("click", handleCancelModal);
     modalCancelBtnEl.addEventListener("click", handleCancelModal);
     modalConfirmBtnEl.addEventListener("click", handleConfirmModal);
-    modalInputUrlEl.addEventListener("focus", handleInputFocus);
-    modalInputUrlEl.addEventListener("blur", handleInputBlur);
-    modalInputUrlEl.addEventListener("change", handleInputChange);
     modalInputUrlEl.addEventListener("input", handleInput);
+
+    modalInputsEls.forEach((input) => {
+      input.addEventListener("focus", handleInputFocus);
+      input.addEventListener("blur", handleInputBlur);
+      input.addEventListener("change", handleInputChange);
+    });
   };
 
   const lookForAppContainer = async () => {
