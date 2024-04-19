@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Userscript starter
-// @namespace    http://tampermonkey.net/
-// @version      0.1
+// @namespace    https://github.com/lukasz-brzozko/userscript-starter
+// @version      2024-02-21
 // @description  Creates a new userscript
 // @author       Łukasz Brzózko
 // @match        https://github.com/
