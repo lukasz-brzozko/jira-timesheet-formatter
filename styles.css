@@ -718,6 +718,10 @@ div.calendar {
   background-color: rgba(25, 118, 210, 0.04);
 }
 
+.btn--small-text {
+  font-size: 11px;
+}
+
 .btn--small {
   width: 40px;
   height: 40px;
