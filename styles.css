@@ -685,9 +685,11 @@ div.calendar {
   background-color: rgba(0, 0, 0, 0.12);
   pointer-events: none;
   cursor: default;
+  border-color: rgba(0, 0, 0, 0.12);
 }
 
-.btn:hover {
+.btn:hover,
+.btn:focus {
   text-decoration: none;
   background-color: #1565c0;
 }
@@ -709,12 +711,14 @@ div.calendar {
   border: 1px solid rgba(25, 118, 210, 0.5);
 }
 
-.btn--outline:hover {
+.btn--outline:hover,
+.btn--outline:focus {
   background-color: rgba(25, 118, 210, 0.04);
   border: 1px solid #1976d2;
 }
 
-.btn--light:hover {
+.btn--light:hover,
+.btn--light:focus {
   background-color: rgba(25, 118, 210, 0.04);
 }
 
