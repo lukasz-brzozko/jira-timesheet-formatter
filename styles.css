@@ -677,7 +677,7 @@ div.calendar {
   border-radius: 4px;
   color: #fff;
   background-color: #1976d2;
-  box-shadow: none;
+  box-shadow: 0 0 0 0 #0747a6;
 }
 
 .btn:disabled {
@@ -686,6 +686,10 @@ div.calendar {
   pointer-events: none;
   cursor: default;
   border-color: rgba(0, 0, 0, 0.12);
+}
+
+.btn:focus {
+  box-shadow: 0 0 0 2px #0747a6;
 }
 
 .btn:hover,
