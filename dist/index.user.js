@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Userscript starter
 // @namespace    https://github.com/lukasz-brzozko/userscript-starter
-// @version      2024-02-21
+// @version      2024-05-21
 // @description  Creates a new userscript
 // @author       Łukasz Brzózko
 // @match        https://github.com/
@@ -10,6 +10,7 @@
 // @downloadURL  https://raw.githubusercontent.com/lukasz-brzozko/userscript-starter/main/dist/index.user.js
 // @grant        none
 // ==/UserScript==
+
 (function () {
   "use strict";
 
