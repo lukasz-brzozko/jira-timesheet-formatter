@@ -6,10 +6,10 @@
 // @author       Łukasz Brzózko
 // @match        https://jira.nd0.pl/*
 // @exclude      https://jira.nd0.pl/plugins/servlet/*
-// @resource styles    https://raw.githubusercontent.com/lukasz-brzozko/jira-timesheet-formatter/main/styles.css
+// @resource styles    https://raw.githubusercontent.com/lukasz-brzozko/jira-timesheet-formatter/main/src/styles.css
 // @icon         https://jira.nd0.pl/s/a3v501/940003/1dlckms/_/images/fav-jsw.png
-// @updateURL    https://raw.githubusercontent.com/lukasz-brzozko/jira-timesheet-formatter/main/timesheet.meta.js
-// @downloadURL  https://raw.githubusercontent.com/lukasz-brzozko/jira-timesheet-formatter/main/timesheet.user.js
+// @updateURL    https://raw.githubusercontent.com/lukasz-brzozko/jira-timesheet-formatter/main/dist/index.meta.js
+// @downloadURL  https://raw.githubusercontent.com/lukasz-brzozko/jira-timesheet-formatter/main/dist/index.user.js
 // @grant        GM_getResourceText
 // ==/UserScript==
 
@@ -21,6 +21,7 @@
     "https://jira.nd0.pl/rest/timesheet-gadget/1.0/timesheet.json?isGadget=true&baseUrl=https%3A%2F%2Fjira.nd0.pl&gadgetTitle=&startDate=&targetUser=&targetGroup=&collapseFieldGroups=false&excludeTargetGroup=&numOfWeeks=1&reportingDay=&projectOrFilter=&projectid=&filterid=&projectRoleId=&commentfirstword=&weekends=false&showDetails=true&sumSubTasks=false&showEmptyRows=false&groupByField=&moreFields=&offset=0&page=1&monthView=false&sum=&sortBy=&sortDir=ASC&_=";
   const JIRA_CUSTOM_URL = "JIRA_CUSTOM_URL";
   const JIRA_WEEK_OFFSET = "JIRA_WEEK_OFFSET";
+  const DRAFT_SCHEDULE = "DRAFT_SCHEDULE";
 
   const MESSAGES = {
     containerFound: "Znaleziono kontener.",
@@ -33,6 +34,8 @@
       offsetLabel: "OFFSET",
       cancelBtn: "Anuluj",
       confirmBtn: "Zapisz",
+      timeCalcLabel: "Wprowadź czas który chcesz przeliczyć",
+      buttonTimeCalculation: "Policz",
     },
     error: {
       default: "Wystąpił błąd. Spróbuj ponownie później.",
@@ -73,6 +76,9 @@
     modalInputUrl: "modal-input-url",
     modalInputOffset: "modal-input-offset",
     modalInputErrorWrapper: "modal-input-error-wrapper",
+    modalInputTimeCalc: "modal-input-time-calc",
+    modalCalcTimeBtn: "modal-calc-time-btn",
+    modalResultTimeCalc: "modal-result-time-calc",
   };
 
   const STATE = {
@@ -95,9 +101,12 @@
   let myModalEl;
   let modalCancelBtnEl;
   let modalConfirmBtnEl;
+  let modalCalcTimeBtnEl;
   let modalFormWrapperEl;
   let modalInputUrlEl;
   let modalInputOffsetEl;
+  let modalInputTimeCalcEl;
+  let modalResultTimeCalcEl;
   let modalInputErrorWrapperEl;
   let modalInputsEls = [];
 
@@ -465,6 +474,14 @@
     return formatterBtn;
   };
 
+  const generateTodaySchedule = () => {
+    const draftScheduleString =
+      localStorage.getItem(DRAFT_SCHEDULE) ||
+      '"0h 00m \\"zadanie 1\\"\\n0h 00m \\"zadanie 2\\""';
+    const draftSchedule = JSON.parse(draftScheduleString);
+    return draftSchedule || "";
+  };
+
   const generateModal = () => {
     const modal = document.createElement("div");
 
@@ -500,14 +517,32 @@
               <p class="modal-input-error"></p>
             </div>
           </div>
+          <div class="modal-form-wrapper" id="${IDS.modalFormWrapper}">
+            <label class="modal-label">${MESSAGES.modal.timeCalcLabel}</label>
+            <div class="modal-input-wrapper">
+              <textarea rows="5" class="modal-input" id="${
+                IDS.modalInputTimeCalc
+              }" style="height: 60px;" placeholder="">${generateTodaySchedule()}</textarea>
+            </div>
+            <div id="${
+              IDS.modalResultTimeCalc
+            }" style="padding-top: 20px; padding-bottom: 10px;"/>
+           </div>
         </div>
-        <div class="modal-btn-wrapper">
-          <button class="btn btn--light" id="${IDS.modalCancelBtn}">${
+        <div class="modal-btn-wrapper" style="justify-content: space-between;">
+         <div>
+    <button class="btn btn--light" id="${IDS.modalCalcTimeBtn}">${
+      MESSAGES.modal.buttonTimeCalculation
+    }</button>
+         </div>
+         <div>
+    <button class="btn btn--light" id="${IDS.modalCancelBtn}">${
       MESSAGES.modal.cancelBtn
     }</button>
           <button class="btn" id="${IDS.modalConfirmBtn}">${
       MESSAGES.modal.confirmBtn
     }</button>
+         </div>
         </div>
       </div>`;
 
@@ -533,6 +568,72 @@
     </div>`;
 
     return toastWrapper;
+  };
+
+  const parseAndCalculate = (input = "") => {
+    localStorage.setItem(DRAFT_SCHEDULE, JSON.stringify(input));
+    // Regex patterns
+    const regexHour = /(\d+(\.\d+)?)(?=\s?h)/g;
+    const regexMinute = /(\d+(\.\d+)?)(?=\s?m?\b(?!d|w))/g;
+    const regexMD = /(\d+(\.\d+)?)(?=\s?md\b)/gi;
+    const regexWeekend = /(\d+(\.\d+)?)(?=\s?w\b)/gi;
+    const regexTicket = /(ORB2BPOO|ORPP|B2BM|CEB2B|BPFOO|CRMO)-\d+/g;
+    const regexQuote = /"(.*?)"/g;
+
+    let totalMinutes = 0;
+    let parsedLines = input.split(/\n/).map((line) => {
+      let lineWithoutQuotes = line.replace(regexQuote, '""'); // Remove quoted text for calculation
+      let hours = 0,
+        minutes = 0,
+        mds = 0,
+        weekends = 0;
+
+      // Convert JIRA tickets to <a> tags in the original line
+      line = line.replace(
+        regexTicket,
+        (match) =>
+          `<a href="https://jira.nd0.pl/browse/${match}" target="_blank">${match}</a>`
+      );
+
+      // Parse hours, minutes, MDs, and weekends from the unquoted portion
+      (lineWithoutQuotes.match(regexHour) || []).forEach((hour) => {
+        hours += parseFloat(hour);
+      });
+      (lineWithoutQuotes.match(regexMinute) || []).forEach((minute) => {
+        minutes += parseFloat(minute);
+      });
+      (lineWithoutQuotes.match(regexMD) || []).forEach((md) => {
+        mds += parseFloat(md) * 8;
+      });
+      (lineWithoutQuotes.match(regexWeekend) || []).forEach((weekend) => {
+        weekends += parseFloat(weekend) * 5 * 8;
+      });
+
+      // Convert total time for this line to minutes and add to total
+      totalMinutes += hours * 60 + minutes + mds * 60 + weekends * 60;
+
+      // Return the processed line with "<br />" for newlines
+      return line + "<br />";
+    });
+
+    // Convert total minutes to hours and minutes for final output
+    const finalHours = Math.floor(totalMinutes / 60);
+    const finalMinutes = totalMinutes % 60;
+
+    const finalMinutesPadded = finalMinutes.toString().padStart(2, 0);
+
+    // Create final output with a separator and the total time
+    const result =
+      parsedLines.join("") +
+      `____________________<br />\n<strong>${finalHours}h ${finalMinutesPadded}m</strong>`;
+
+    return result;
+  };
+
+  const calculateTime = () => {
+    const { value } = modalInputTimeCalcEl;
+    const result = parseAndCalculate(value);
+    modalResultTimeCalcEl.innerHTML = result;
   };
 
   const generateUiElements = () => {
@@ -563,12 +664,18 @@
     );
     modalCancelBtnEl = myModalEl.querySelector(`#${IDS.modalCancelBtn}`);
     modalConfirmBtnEl = myModalEl.querySelector(`#${IDS.modalConfirmBtn}`);
+    modalCalcTimeBtnEl = myModalEl.querySelector(`#${IDS.modalCalcTimeBtn}`);
+    modalResultTimeCalcEl = myModalEl.querySelector(
+      `#${IDS.modalResultTimeCalc}`
+    );
     const modalOverlayEl = myModalEl.querySelector(`#${IDS.modalOverlay}`);
-    [modalInputUrlEl, modalInputOffsetEl] = modalInputsEls;
+    [modalInputUrlEl, modalInputOffsetEl, modalInputTimeCalcEl] =
+      modalInputsEls;
 
     formatterBtn.addEventListener("click", renderContent);
     settingsBtnEl.addEventListener("click", openModal);
     modalOverlayEl.addEventListener("click", handleCancelModal);
+    modalCalcTimeBtnEl.addEventListener("click", calculateTime);
     modalCancelBtnEl.addEventListener("click", handleCancelModal);
     modalConfirmBtnEl.addEventListener("click", handleConfirmModal);
     modalInputUrlEl.addEventListener("input", handleInput);

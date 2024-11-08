@@ -1091,6 +1091,10 @@ div.calendar {
   transition: transform 200ms cubic-bezier(0, 0, 0.2, 1) 0ms;
 }
 
+.modal-input-wrapper textarea {
+  resize: vertical;
+}
+
 .modal-form-wrapper.focus > .modal-input-wrapper::after {
   transform: scaleX(1) translateX(0px);
 }
