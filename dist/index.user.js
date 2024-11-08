@@ -472,8 +472,10 @@ function _asyncToGenerator(fn) { return function () { var self = this, args = ar
     return formatterBtn;
   };
   var generateTodaySchedule = function generateTodaySchedule() {
-    var draftScheduleString = localStorage.getItem(DRAFT_SCHEDULE) || '"0h 00m \\"zadanie 1\\"\\n0h 00m \\"zadanie 2\\""';
-    var draftSchedule = JSON.parse(draftScheduleString);
+    var emptyValues = [null, "null"];
+    var draftScheduleString = localStorage.getItem(DRAFT_SCHEDULE);
+    var draftScheduleStringToParse = emptyValues.includes(draftScheduleString) ? '"0h 00m \\"zadanie 1\\"\\n0h 00m \\"zadanie 2\\""' : draftScheduleString;
+    var draftSchedule = JSON.parse(draftScheduleStringToParse);
     return draftSchedule || "";
   };
   var generateModal = function generateModal() {
@@ -491,7 +493,8 @@ function _asyncToGenerator(fn) { return function () { var self = this, args = ar
   };
   var parseAndCalculate = function parseAndCalculate() {
     var input = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : "";
-    localStorage.setItem(DRAFT_SCHEDULE, JSON.stringify(input));
+    var valueToStore = input ? JSON.stringify(input) : null;
+    localStorage.setItem(DRAFT_SCHEDULE, valueToStore);
     // Regex patterns
     var regexHour = /(\d+(\.\d+)?)(?=\s?h)/g;
     var regexMinute = /(\d+(\.\d+)?)(?=\s?m?\b(?!d|w))/g;

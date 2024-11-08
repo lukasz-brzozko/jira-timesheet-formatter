@@ -475,10 +475,12 @@
   };
 
   const generateTodaySchedule = () => {
-    const draftScheduleString =
-      localStorage.getItem(DRAFT_SCHEDULE) ||
-      '"0h 00m \\"zadanie 1\\"\\n0h 00m \\"zadanie 2\\""';
-    const draftSchedule = JSON.parse(draftScheduleString);
+    const emptyValues = [null, "null"];
+    const draftScheduleString = localStorage.getItem(DRAFT_SCHEDULE);
+    const draftScheduleStringToParse = emptyValues.includes(draftScheduleString)
+      ? '"0h 00m \\"zadanie 1\\"\\n0h 00m \\"zadanie 2\\""'
+      : draftScheduleString;
+    const draftSchedule = JSON.parse(draftScheduleStringToParse);
     return draftSchedule || "";
   };
 
@@ -571,7 +573,9 @@
   };
 
   const parseAndCalculate = (input = "") => {
-    localStorage.setItem(DRAFT_SCHEDULE, JSON.stringify(input));
+    const valueToStore = input ? JSON.stringify(input) : null;
+
+    localStorage.setItem(DRAFT_SCHEDULE, valueToStore);
     // Regex patterns
     const regexHour = /(\d+(\.\d+)?)(?=\s?h)/g;
     const regexMinute = /(\d+(\.\d+)?)(?=\s?m?\b(?!d|w))/g;
