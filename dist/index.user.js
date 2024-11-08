@@ -15,15 +15,15 @@ function _asyncToGenerator(fn) { return function () { var self = this, args = ar
 // ==UserScript==
 // @name         Jira Time Sheet Formatter
 // @namespace    https://github.com/lukasz-brzozko/jira-timesheet-formatter
-// @version      0.4.2
+// @version      2024-11-08
 // @description  Format time into hours and minutes
 // @author       Łukasz Brzózko
 // @match        https://jira.nd0.pl/*
 // @exclude      https://jira.nd0.pl/plugins/servlet/*
-// @resource styles    https://raw.githubusercontent.com/lukasz-brzozko/jira-timesheet-formatter/main/styles.css
+// @resource styles    https://raw.githubusercontent.com/lukasz-brzozko/jira-timesheet-formatter/main/src/styles.css
 // @icon         https://jira.nd0.pl/s/a3v501/940003/1dlckms/_/images/fav-jsw.png
-// @updateURL    https://raw.githubusercontent.com/lukasz-brzozko/jira-timesheet-formatter/main/timesheet.meta.js
-// @downloadURL  https://raw.githubusercontent.com/lukasz-brzozko/jira-timesheet-formatter/main/timesheet.user.js
+// @updateURL    https://raw.githubusercontent.com/lukasz-brzozko/jira-timesheet-formatter/main/dist/index.meta.js
+// @downloadURL  https://raw.githubusercontent.com/lukasz-brzozko/jira-timesheet-formatter/main/dist/index.user.js
 // @grant        GM_getResourceText
 // ==/UserScript==
 
@@ -34,6 +34,7 @@ function _asyncToGenerator(fn) { return function () { var self = this, args = ar
   var DEAFULT_BASE_URL = "https://jira.nd0.pl/rest/timesheet-gadget/1.0/timesheet.json?isGadget=true&baseUrl=https%3A%2F%2Fjira.nd0.pl&gadgetTitle=&startDate=&targetUser=&targetGroup=&collapseFieldGroups=false&excludeTargetGroup=&numOfWeeks=1&reportingDay=&projectOrFilter=&projectid=&filterid=&projectRoleId=&commentfirstword=&weekends=false&showDetails=true&sumSubTasks=false&showEmptyRows=false&groupByField=&moreFields=&offset=0&page=1&monthView=false&sum=&sortBy=&sortDir=ASC&_=";
   var JIRA_CUSTOM_URL = "JIRA_CUSTOM_URL";
   var JIRA_WEEK_OFFSET = "JIRA_WEEK_OFFSET";
+  var DRAFT_SCHEDULE = "DRAFT_SCHEDULE";
   var MESSAGES = {
     containerFound: "Znaleziono kontener.",
     btnText: "Formatuj czasy",
@@ -44,7 +45,9 @@ function _asyncToGenerator(fn) { return function () { var self = this, args = ar
       label: "API URL",
       offsetLabel: "OFFSET",
       cancelBtn: "Anuluj",
-      confirmBtn: "Zapisz"
+      confirmBtn: "Zapisz",
+      timeCalcLabel: "Wprowadź czas który chcesz przeliczyć",
+      buttonTimeCalculation: "Policz"
     },
     error: {
       "default": "Wystąpił błąd. Spróbuj ponownie później.",
@@ -81,7 +84,10 @@ function _asyncToGenerator(fn) { return function () { var self = this, args = ar
     modalFormOffsetWrapper: "modal-form-offset-wrapper",
     modalInputUrl: "modal-input-url",
     modalInputOffset: "modal-input-offset",
-    modalInputErrorWrapper: "modal-input-error-wrapper"
+    modalInputErrorWrapper: "modal-input-error-wrapper",
+    modalInputTimeCalc: "modal-input-time-calc",
+    modalCalcTimeBtn: "modal-calc-time-btn",
+    modalResultTimeCalc: "modal-result-time-calc"
   };
   var STATE = {
     loading: "loading",
@@ -102,9 +108,12 @@ function _asyncToGenerator(fn) { return function () { var self = this, args = ar
   var myModalEl;
   var modalCancelBtnEl;
   var modalConfirmBtnEl;
+  var modalCalcTimeBtnEl;
   var modalFormWrapperEl;
   var modalInputUrlEl;
   var modalInputOffsetEl;
+  var modalInputTimeCalcEl;
+  var modalResultTimeCalcEl;
   var modalInputErrorWrapperEl;
   var modalInputsEls = [];
   var linkStyles = /*#__PURE__*/function () {
@@ -462,18 +471,82 @@ function _asyncToGenerator(fn) { return function () { var self = this, args = ar
     formatterBtn.innerHTML = "\n      <span class=\"btn-text\">".concat(MESSAGES.btnText, "</span>\n      <div class=\"spinner\">\n        <div class=\"lds-ripple\">\n          <div></div>\n          <div></div>\n        </div>\n      </div>");
     return formatterBtn;
   };
+  var generateTodaySchedule = function generateTodaySchedule() {
+    var draftScheduleString = localStorage.getItem(DRAFT_SCHEDULE) || '"0h 00m \\"zadanie 1\\"\\n0h 00m \\"zadanie 2\\""';
+    var draftSchedule = JSON.parse(draftScheduleString);
+    return draftSchedule || "";
+  };
   var generateModal = function generateModal() {
     var _localStorage$getItem4, _localStorage$getItem5;
     var modal = document.createElement("div");
     modal.id = IDS.myModal;
     modal.className = "my-modal active";
-    modal.innerHTML = "\n      <div class=\"modal-overlay\" id=\"modal-overlay\"></div>\n      <div class=\"modal-wrapper\">\n        <h2 class=\"modal-title\">".concat(MESSAGES.modal.title, "</h2>\n        <div class=\"modal-content-container\">\n          <p class=\"modal-desc\">").concat(MESSAGES.modal.desc, "</p>\n          <div class=\"modal-form-wrapper ").concat(((_localStorage$getItem4 = localStorage.getItem(JIRA_CUSTOM_URL)) !== null && _localStorage$getItem4 !== void 0 ? _localStorage$getItem4 : "") && STATE.filled, "\" id=\"").concat(IDS.modalFormWrapper, "\">\n            <label class=\"modal-label\">").concat(MESSAGES.modal.label, "</label>\n            <div class=\"modal-input-wrapper\">\n              <input class=\"modal-input\" id=\"modal-input-url\" value>\n            </div>\n            <div class=\"modal-input-error-wrapper\" id=\"").concat(IDS.modalInputErrorWrapper, "\">\n              <p class=\"modal-input-error\">").concat(MESSAGES.error.modal.inputUrl, "</p>\n            </div>\n          </div>\n          <div class=\"modal-form-wrapper ").concat(((_localStorage$getItem5 = localStorage.getItem(JIRA_WEEK_OFFSET)) !== null && _localStorage$getItem5 !== void 0 ? _localStorage$getItem5 : "") && STATE.filled, "\" id=\"").concat(IDS.modalFormOffsetWrapper, "\">\n            <label class=\"modal-label\">").concat(MESSAGES.modal.offsetLabel, "</label>\n            <div class=\"modal-input-wrapper\">\n              <input type=\"number\" class=\"modal-input\" id=\"modal-input-offset\" value>\n            </div>\n            <div class=\"modal-input-error-wrapper\">\n              <p class=\"modal-input-error\"></p>\n            </div>\n          </div>\n        </div>\n        <div class=\"modal-btn-wrapper\">\n          <button class=\"btn btn--light\" id=\"").concat(IDS.modalCancelBtn, "\">").concat(MESSAGES.modal.cancelBtn, "</button>\n          <button class=\"btn\" id=\"").concat(IDS.modalConfirmBtn, "\">").concat(MESSAGES.modal.confirmBtn, "</button>\n        </div>\n      </div>");
+    modal.innerHTML = "\n      <div class=\"modal-overlay\" id=\"modal-overlay\"></div>\n      <div class=\"modal-wrapper\">\n        <h2 class=\"modal-title\">".concat(MESSAGES.modal.title, "</h2>\n        <div class=\"modal-content-container\">\n          <p class=\"modal-desc\">").concat(MESSAGES.modal.desc, "</p>\n          <div class=\"modal-form-wrapper ").concat(((_localStorage$getItem4 = localStorage.getItem(JIRA_CUSTOM_URL)) !== null && _localStorage$getItem4 !== void 0 ? _localStorage$getItem4 : "") && STATE.filled, "\" id=\"").concat(IDS.modalFormWrapper, "\">\n            <label class=\"modal-label\">").concat(MESSAGES.modal.label, "</label>\n            <div class=\"modal-input-wrapper\">\n              <input class=\"modal-input\" id=\"modal-input-url\" value>\n            </div>\n            <div class=\"modal-input-error-wrapper\" id=\"").concat(IDS.modalInputErrorWrapper, "\">\n              <p class=\"modal-input-error\">").concat(MESSAGES.error.modal.inputUrl, "</p>\n            </div>\n          </div>\n          <div class=\"modal-form-wrapper ").concat(((_localStorage$getItem5 = localStorage.getItem(JIRA_WEEK_OFFSET)) !== null && _localStorage$getItem5 !== void 0 ? _localStorage$getItem5 : "") && STATE.filled, "\" id=\"").concat(IDS.modalFormOffsetWrapper, "\">\n            <label class=\"modal-label\">").concat(MESSAGES.modal.offsetLabel, "</label>\n            <div class=\"modal-input-wrapper\">\n              <input type=\"number\" class=\"modal-input\" id=\"modal-input-offset\" value>\n            </div>\n            <div class=\"modal-input-error-wrapper\">\n              <p class=\"modal-input-error\"></p>\n            </div>\n          </div>\n          <div class=\"modal-form-wrapper\" id=\"").concat(IDS.modalFormWrapper, "\">\n            <label class=\"modal-label\">").concat(MESSAGES.modal.timeCalcLabel, "</label>\n            <div class=\"modal-input-wrapper\">\n              <textarea rows=\"5\" class=\"modal-input\" id=\"").concat(IDS.modalInputTimeCalc, "\" style=\"height: 60px;\" placeholder=\"\">").concat(generateTodaySchedule(), "</textarea>\n            </div>\n            <div id=\"").concat(IDS.modalResultTimeCalc, "\" style=\"padding-top: 20px; padding-bottom: 10px;\"/>\n           </div>\n        </div>\n        <div class=\"modal-btn-wrapper\" style=\"justify-content: space-between;\">\n         <div>\n    <button class=\"btn btn--light\" id=\"").concat(IDS.modalCalcTimeBtn, "\">").concat(MESSAGES.modal.buttonTimeCalculation, "</button>\n         </div>\n         <div>\n    <button class=\"btn btn--light\" id=\"").concat(IDS.modalCancelBtn, "\">").concat(MESSAGES.modal.cancelBtn, "</button>\n          <button class=\"btn\" id=\"").concat(IDS.modalConfirmBtn, "\">").concat(MESSAGES.modal.confirmBtn, "</button>\n         </div>\n        </div>\n      </div>");
     return modal;
   };
   var generateToast = function generateToast() {
     var toastWrapper = document.createElement("div");
     toastWrapper.innerHTML = "\n    <div id=\"toast\" class=\"toast error\" role=\"alert\">\n      <div class=\"toast-icon-container\">\n        <svg\n          class=\"toast-icon toast-icon--error\"\n          focusable=\"false\"\n          aria-hidden=\"true\"\n          viewBox=\"0 0 24 24\"\n        >\n          <path d=\"M11 15h2v2h-2zm0-8h2v6h-2zm.99-5C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zM12 20c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8z\"></path>\n        </svg>\n      </div>\n      <div class=\"toast-message\" id=\"".concat(IDS.toastMessage, "\">").concat(MESSAGES.error["default"], "</div>\n    </div>");
     return toastWrapper;
+  };
+  var parseAndCalculate = function parseAndCalculate() {
+    var input = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : "";
+    localStorage.setItem(DRAFT_SCHEDULE, JSON.stringify(input));
+    // Regex patterns
+    var regexHour = /(\d+(\.\d+)?)(?=\s?h)/g;
+    var regexMinute = /(\d+(\.\d+)?)(?=\s?m?\b(?!d|w))/g;
+    var regexMD = /(\d+(\.\d+)?)(?=\s?md\b)/gi;
+    var regexWeekend = /(\d+(\.\d+)?)(?=\s?w\b)/gi;
+    var regexTicket = /(ORB2BPOO|ORPP|B2BM|CEB2B|BPFOO|CRMO)-\d+/g;
+    var regexQuote = /"(.*?)"/g;
+    var totalMinutes = 0;
+    var parsedLines = input.split(/\n/).map(function (line) {
+      var lineWithoutQuotes = line.replace(regexQuote, '""'); // Remove quoted text for calculation
+      var hours = 0,
+        minutes = 0,
+        mds = 0,
+        weekends = 0;
+
+      // Convert JIRA tickets to <a> tags in the original line
+      line = line.replace(regexTicket, function (match) {
+        return "<a href=\"https://jira.nd0.pl/browse/".concat(match, "\" target=\"_blank\">").concat(match, "</a>");
+      });
+
+      // Parse hours, minutes, MDs, and weekends from the unquoted portion
+      (lineWithoutQuotes.match(regexHour) || []).forEach(function (hour) {
+        hours += parseFloat(hour);
+      });
+      (lineWithoutQuotes.match(regexMinute) || []).forEach(function (minute) {
+        minutes += parseFloat(minute);
+      });
+      (lineWithoutQuotes.match(regexMD) || []).forEach(function (md) {
+        mds += parseFloat(md) * 8;
+      });
+      (lineWithoutQuotes.match(regexWeekend) || []).forEach(function (weekend) {
+        weekends += parseFloat(weekend) * 5 * 8;
+      });
+
+      // Convert total time for this line to minutes and add to total
+      totalMinutes += hours * 60 + minutes + mds * 60 + weekends * 60;
+
+      // Return the processed line with "<br />" for newlines
+      return line + "<br />";
+    });
+
+    // Convert total minutes to hours and minutes for final output
+    var finalHours = Math.floor(totalMinutes / 60);
+    var finalMinutes = totalMinutes % 60;
+    var finalMinutesPadded = finalMinutes.toString().padStart(2, 0);
+
+    // Create final output with a separator and the total time
+    var result = parsedLines.join("") + "____________________<br />\n<strong>".concat(finalHours, "h ").concat(finalMinutesPadded, "m</strong>");
+    return result;
+  };
+  var calculateTime = function calculateTime() {
+    var _modalInputTimeCalcEl = modalInputTimeCalcEl,
+      value = _modalInputTimeCalcEl.value;
+    var result = parseAndCalculate(value);
+    modalResultTimeCalcEl.innerHTML = result;
   };
   var generateUiElements = function generateUiElements() {
     var fragment = new DocumentFragment();
@@ -498,14 +571,18 @@ function _asyncToGenerator(fn) { return function () { var self = this, args = ar
     modalInputErrorWrapperEl = myModalEl.querySelector("#".concat(IDS.modalInputErrorWrapper));
     modalCancelBtnEl = myModalEl.querySelector("#".concat(IDS.modalCancelBtn));
     modalConfirmBtnEl = myModalEl.querySelector("#".concat(IDS.modalConfirmBtn));
+    modalCalcTimeBtnEl = myModalEl.querySelector("#".concat(IDS.modalCalcTimeBtn));
+    modalResultTimeCalcEl = myModalEl.querySelector("#".concat(IDS.modalResultTimeCalc));
     var modalOverlayEl = myModalEl.querySelector("#".concat(IDS.modalOverlay));
     var _modalInputsEls = modalInputsEls;
-    var _modalInputsEls2 = _slicedToArray(_modalInputsEls, 2);
+    var _modalInputsEls2 = _slicedToArray(_modalInputsEls, 3);
     modalInputUrlEl = _modalInputsEls2[0];
     modalInputOffsetEl = _modalInputsEls2[1];
+    modalInputTimeCalcEl = _modalInputsEls2[2];
     formatterBtn.addEventListener("click", renderContent);
     settingsBtnEl.addEventListener("click", openModal);
     modalOverlayEl.addEventListener("click", handleCancelModal);
+    modalCalcTimeBtnEl.addEventListener("click", calculateTime);
     modalCancelBtnEl.addEventListener("click", handleCancelModal);
     modalConfirmBtnEl.addEventListener("click", handleConfirmModal);
     modalInputUrlEl.addEventListener("input", handleInput);
