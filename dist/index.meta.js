@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Jira Time Sheet Formatter
 // @namespace    https://github.com/lukasz-brzozko/jira-timesheet-formatter
-// @version      2024-11-08
+// @version      2024-11-13
 // @description  Format time into hours and minutes
 // @author       Łukasz Brzózko
 // @match        https://jira.nd0.pl/*

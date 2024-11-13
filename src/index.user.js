@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Jira Time Sheet Formatter
 // @namespace    https://github.com/lukasz-brzozko/jira-timesheet-formatter
-// @version      2024-11-08
+// @version      2024-11-13
 // @description  Format time into hours and minutes
 // @author       Łukasz Brzózko
 // @match        https://jira.nd0.pl/*
@@ -624,12 +624,13 @@
     const finalHours = Math.floor(totalMinutes / 60);
     const finalMinutes = totalMinutes % 60;
 
-    const finalMinutesPadded = finalMinutes.toString().padStart(2, 0);
-
     // Create final output with a separator and the total time
     const result =
       parsedLines.join("") +
-      `____________________<br />\n<strong>${finalHours}h ${finalMinutesPadded}m</strong>`;
+      `____________________<br />\n<strong>${finalHours}h ${padNumber(
+        finalMinutes,
+        2
+      )}m</strong>`;
 
     return result;
   };
